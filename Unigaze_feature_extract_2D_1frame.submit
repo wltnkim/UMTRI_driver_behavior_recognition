@@ -1,0 +1,15 @@
+#!/bin/bash
+#
+#SBATCH --job-name=2D_G
+#SBATCH --nodes=1
+#SBATCH --mem=64G
+#SBATCH --time=100:00:00
+#SBATCH --gres=gpu:1
+#SBATCH --error=/home/superman/data/jkim/work/job_err/job.%J.err
+#SBATCH --output=/home/superman/data/jkim/work/job_out/job.%J.out
+
+eval "$(conda shell.bash hook)"
+conda env list
+conda activate UniGaze
+
+python Unigaze_feature_extract_2D_1frame.py
