@@ -8,8 +8,9 @@ import hashlib
 from ultralytics import YOLO
 from models_vit import VisionTransformer
 from tqdm import tqdm
+import re
 
-# --- 설정 ---
+# --- Settings ---
 input_root_dir = "/home/superman/data/jkim/work/datasets/OBC_STRUCTURE_COPY"
 save_dir = "saved_frames_au_features"
 os.makedirs(save_dir, exist_ok=True)
@@ -23,10 +24,10 @@ else:
 
 au_names = [f"AU{i}" for i in [1, 2, 4, 6, 7, 10, 12, 14, 15, 17, 23, 24]]
 
-# --- 모델 로딩 ---
+# --- Model Loading ---
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# AU 모델
+# AU Model
 model = VisionTransformer(img_size=224, patch_size=16, num_classes=12,
                           embed_dim=768, depth=12, num_heads=12, mlp_ratio=4.0, qkv_bias=True)
 ckpt = torch.load('checkpoints/FMAE_ViT_base.pth', map_location='cpu')
@@ -34,8 +35,8 @@ model.load_state_dict(ckpt, strict=False)
 model.eval()
 model.to(device)
 
-# YOLOv8-face 모델
-face_detector = YOLO("yolov8x-face-lindevs.pt")  # 사전 학습된 얼굴 모델 경로
+# YOLOv8-face model
+face_detector = YOLO("yolov8x-face-lindevs.pt")  # Path to the pre-trained face model
 
 transform = transforms.Compose([
     transforms.ToPILImage(),
@@ -45,7 +46,6 @@ transform = transforms.Compose([
 ])
 
 def extract_behavior_class(folder_name):
-    import re
     match = re.match(r"OBC_H\d{3}_(.+?)_\d{3}_", folder_name)
     if match:
         return match.group(1)
@@ -59,7 +59,7 @@ if os.path.exists(label_map_path):
         label_map = pickle.load(f)
     label_counter = len(label_map)
 
-# --- 처리 시작 ---
+# --- Start Processing ---
 for dirpath, _, filenames in tqdm(os.walk(input_root_dir)):
     if "Color" in dirpath and any(fname.lower().endswith(".jpeg") for fname in filenames):
         if dirpath in completed_paths:
@@ -109,13 +109,13 @@ for dirpath, _, filenames in tqdm(os.walk(input_root_dir)):
                     pickle.dump((au_vector, label), f)
 
             except Exception as e:
-                print(f"❌ 오류: {img_path} → {e}")
+                print(f"❌ Error: {img_path} → {e}")
 
         with open(completed_log_path, "a") as f:
             f.write(dirpath + "\n")
 
-# --- 라벨 맵 저장 ---
+# --- Save Label Map ---
 with open(label_map_path, "wb") as f:
     pickle.dump(label_map, f)
 
-print("✅ AU feature 저장 완료 (YOLOv8-face 기반)")
+print("✅ AU feature saving complete (based on YOLOv8-face)")

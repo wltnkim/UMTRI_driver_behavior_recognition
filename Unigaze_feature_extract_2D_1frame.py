@@ -14,11 +14,11 @@ from gazelib.gaze.gaze_utils import pitchyaw_to_vector, vector_to_pitchyaw
 from gazelib.label_transform import get_face_center_by_nose
 from utils import instantiate_from_cfg
 
-# 저장 디렉토리
+# Directory to save the output
 save_dir = "saved_frames_unigaze_align_1frame"
 os.makedirs(save_dir, exist_ok=True)
 
-# 완료된 경로를 저장할 로그 파일
+# Log file to store paths of completed directories
 completed_log_path = "completed_paths_unigaze_align_1frame.txt"
 if os.path.exists(completed_log_path):
     with open(completed_log_path, "r") as f:
@@ -26,7 +26,7 @@ if os.path.exists(completed_log_path):
 else:
     completed_paths = set()
 
-# Model 로딩
+# Load the model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model_cfg_path = "/home/superman/data/jkim/work/side_project/UMTRI/UniGaze/unigaze/configs/model/mae_b_16_gaze.yaml"
 ckpt_resume = "/home/superman/data/jkim/work/side_project/UMTRI/UniGaze/checkpoints/unigaze_b16_joint.pth.tar"
@@ -56,7 +56,7 @@ def set_dummy_camera_model(image=None):
     camera_distortion = np.zeros((1, 5))
     return np.array(camera_matrix), np.array(camera_distortion)
 
-# Gaze estimation 함수
+# Gaze estimation function
 def extract_gaze_from_image(image):
     preds = fa.get_landmarks(image)
     if preds is None:
@@ -79,7 +79,7 @@ def extract_gaze_from_image(image):
     pred_gaze = ret["pred_gaze"][0].cpu().data.numpy()
     return pred_gaze.flatten()
 
-# 폴더명에서 behavior class 코드 추출
+# Function to extract the behavior class code from a folder name
 def extract_behavior_class(folder_name):
     match = re.match(r"OBC_H\d{3}_(.+?)_\d{3}_", folder_name)
     if match:
@@ -131,9 +131,9 @@ for dirpath, dirnames, filenames in tqdm(os.walk(root_dir)):
                 f.write(dirpath + "\n")
 
         except Exception as e:
-            print(f"❌ 오류 발생: {dirpath} → {e}")
+            print(f"❌ Error processing directory: {dirpath} → {e}")
 
 with open(label_map_path, "wb") as f:
     pickle.dump(label_map, f)
 
-print("✅ UniGaze 기반 gaze 프레임 단위 저장 완료!")
+print("✅ Frame-by-frame gaze data saving based on UniGaze is complete!")

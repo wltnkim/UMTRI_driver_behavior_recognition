@@ -7,14 +7,14 @@ import hashlib
 from tqdm import tqdm
 from ultralytics import YOLO
 
-# YOLO-Pose 모델 불러오기
+# Load the YOLO-Pose model
 model = YOLO("yolov8x-pose.pt")
 
-# 저장 디렉토리
+# Directory to save the output
 save_dir = "saved_frames_yolopose_align_1frame"
 os.makedirs(save_dir, exist_ok=True)
 
-# 완료된 경로를 저장할 로그 파일
+# Log file to store paths of completed directories
 completed_log_path = "completed_paths_frames_yolopose_align_1frame.txt"
 if os.path.exists(completed_log_path):
     with open(completed_log_path, "r") as f:
@@ -22,35 +22,46 @@ if os.path.exists(completed_log_path):
 else:
     completed_paths = set()
 
-# YOLO-Pose 기반 2D 포즈 추출 함수
+# Function to extract 2D pose from an image using YOLO-Pose
 def extract_pose_from_image(img_path):
+    """
+    Extracts 2D pose keypoints from a single image file.
+    Returns a flattened numpy array of (x, y) coordinates for 17 keypoints.
+    """
     results = model(img_path, verbose=False)
     if len(results[0].keypoints.xy) == 0:
-        return np.zeros((17, 2), dtype=np.float32).flatten()  # 34차원 (x, y)
+        # Return a zero vector if no keypoints are detected
+        return np.zeros((17, 2), dtype=np.float32).flatten()  # 34 dimensions (x, y)
     else:
+        # Return the detected keypoints
         return results[0].keypoints.xy[0].cpu().numpy().flatten()
 
-# 폴더명에서 behavior class 코드 추출
+# Function to extract the behavior class code from a folder name
 def extract_behavior_class(folder_name):
+    """
+    Parses the folder name to find the behavior class code using regex.
+    Example: "OBC_H001_WALKING_001_" -> "WALKING"
+    """
     match = re.match(r"OBC_H\d{3}_(.+?)_\d{3}_", folder_name)
     if match:
         return match.group(1)
     return None
 
-# 루트 디렉토리
+# Root directory for the dataset
 root_dir = "/home/superman/data/jkim/work/datasets/OBC_STRUCTURE_COPY"
 label_map = {}
 label_counter = 0
 
-# label_map 불러오기
+# Load the label map if it exists
 label_map_path = "pose_label_map_frames_yolopose_align_1frame.pkl"
 if os.path.exists(label_map_path):
     with open(label_map_path, "rb") as f:
         label_map = pickle.load(f)
     label_counter = len(label_map)
 
-# 데이터 처리
+# Process the data
 for dirpath, dirnames, filenames in tqdm(os.walk(root_dir)):
+    # Check if the directory contains color images
     if "Color" in dirpath and any(fname.lower().endswith(".jpeg") for fname in filenames):
         if dirpath in completed_paths:
             continue
@@ -64,6 +75,7 @@ for dirpath, dirnames, filenames in tqdm(os.walk(root_dir)):
         if not class_code:
             continue
 
+        # Assign a numerical label to the class if it's new
         if class_code not in label_map:
             label_map[class_code] = label_counter
             label_counter += 1
@@ -71,7 +83,8 @@ for dirpath, dirnames, filenames in tqdm(os.walk(root_dir)):
 
         try:
             frame_files = sorted([f for f in filenames if f.lower().endswith(".jpeg")])
-            dir_hash = hashlib.md5(dirpath.encode()).hexdigest()[:12]  # 결정적 파일 이름
+            # Create a deterministic file name using a hash of the directory path
+            dir_hash = hashlib.md5(dirpath.encode()).hexdigest()[:12]
 
             for idx, frame_file in enumerate(frame_files):
                 img_path = os.path.join(dirpath, frame_file)
@@ -80,14 +93,15 @@ for dirpath, dirnames, filenames in tqdm(os.walk(root_dir)):
                 with open(save_path, "wb") as f:
                     pickle.dump((pose, label), f)
 
+            # Log the completed directory path
             with open(completed_log_path, "a") as f:
                 f.write(dirpath + "\n")
 
         except Exception as e:
-            print(f"❌ 오류 발생: {dirpath} → {e}")
+            print(f"❌ Error processing directory: {dirpath} → {e}")
 
-# label map 저장
+# Save the final label map
 with open(label_map_path, "wb") as f:
     pickle.dump(label_map, f)
 
-print("✅ YOLO-Pose 기반 프레임 단위 저장 완료!")
+print("✅ Frame-by-frame data saving based on YOLO-Pose is complete!")
